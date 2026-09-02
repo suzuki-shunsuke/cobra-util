@@ -19,8 +19,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Ext is the file extension of the documents. A document is named by its file name
-// without this extension, which is what 'docs show' takes.
+// Ext is the file extension of the documents. A document is named by its path in the
+// documents' fs.FS without this extension, which is what 'docs show' takes.
 const Ext = ".md"
 
 // errNoDocs is returned rather than reporting an empty list of documents, because a
@@ -39,20 +39,27 @@ type Result struct {
 	Description string `json:"description" yaml:"description"`
 }
 
-// Names lists the names of the documents in fsys, in the order fs.ReadDir returns
-// them, which is by file name. Anything that isn't a Markdown file in the root of
-// fsys is skipped, so a directory of documents can also hold the images they embed.
+// Names lists the names of the documents in fsys, in lexical order by path.
+// Anything that isn't a Markdown file is skipped, so a directory of documents can
+// also hold the images they embed.
+//
+// Subdirectories are walked, and a document in one is named by its path without the
+// extension, such as "codes/001", which is the name 'docs show' takes for it. A CLI
+// that groups its documents in directories therefore serves them all without having
+// to flatten the directory the documentation is written in.
 func Names(fsys fs.FS) ([]string, error) {
-	entries, err := fs.ReadDir(fsys, ".")
-	if err != nil {
-		return nil, fmt.Errorf("read the docs directory: %w", err)
-	}
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), Ext) {
-			continue
+	names := []string{}
+	if err := fs.WalkDir(fsys, ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		names = append(names, strings.TrimSuffix(entry.Name(), Ext))
+		if entry.IsDir() || !strings.HasSuffix(path, Ext) {
+			return nil
+		}
+		names = append(names, strings.TrimSuffix(path, Ext))
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("read the docs directory: %w", err)
 	}
 	return names, nil
 }

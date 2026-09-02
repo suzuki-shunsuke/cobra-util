@@ -25,7 +25,9 @@ func testFS() fs.FS {
 		"install.md": &fstest.MapFile{Data: []byte("---\ndescription: How to install.\n---\n\n# Install\n")},
 		"usage.md":   &fstest.MapFile{Data: []byte("---\ndescription: How to use.\n---\n\n# Usage\n")},
 		"logo.png":   &fstest.MapFile{Data: []byte("not a document")},
-		"nested":     &fstest.MapFile{Mode: fs.ModeDir},
+		// A document in a subdirectory is named by its path, so that a CLI whose
+		// documentation is grouped in directories serves all of it.
+		"codes/001.md": &fstest.MapFile{Data: []byte("---\ndescription: What error 001 means.\n---\n\n# 001\n")},
 	}
 }
 
@@ -57,6 +59,10 @@ func TestNew_list(t *testing.T) {
 			cmd:  &docs.Command{FS: testFS(), Name: name},
 			want: `{
   "results": [
+    {
+      "name": "codes/001",
+      "description": "What error 001 means."
+    },
     {
       "name": "install",
       "description": "How to install."
@@ -121,6 +127,18 @@ func TestNew_show(t *testing.T) {
 			want: "---\ndescription: How to install.\n---\n\n# Install\n",
 		},
 		{
+			name: "a document in a subdirectory is named by its path",
+			cmd:  &docs.Command{FS: testFS(), Name: name},
+			args: []string{show, "codes/001"},
+			want: "---\ndescription: What error 001 means.\n---\n\n# 001\n",
+		},
+		{
+			name:    "a name that escapes the documents is not found",
+			cmd:     &docs.Command{FS: testFS(), Name: name},
+			args:    []string{show, "../secret"},
+			wantErr: "the document ../secret isn't found",
+		},
+		{
 			name: "a document without a trailing newline gets one",
 			cmd:  &docs.Command{FS: fstest.MapFS{"a.md": &fstest.MapFile{Data: []byte("# A")}}},
 			args: []string{show, "a"},
@@ -130,13 +148,13 @@ func TestNew_show(t *testing.T) {
 			name:    "a wrong name reports the available documents",
 			cmd:     &docs.Command{FS: testFS(), Name: name},
 			args:    []string{show, "instal"},
-			wantErr: "Available documents: install, usage",
+			wantErr: "Available documents: codes/001, install, usage",
 		},
 		{
 			name:    "no name reports the available documents too",
 			cmd:     &docs.Command{FS: testFS(), Name: name},
 			args:    []string{show},
-			wantErr: "Available documents: install, usage",
+			wantErr: "Available documents: codes/001, install, usage",
 		},
 		{
 			name:    "no documents at all",
@@ -192,7 +210,7 @@ func TestCommand_Names(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]string{"install", "usage"}, names); diff != "" {
+	if diff := cmp.Diff([]string{"codes/001", "install", "usage"}, names); diff != "" {
 		t.Fatal(diff)
 	}
 	if _, err := (&docs.Command{}).Names(); err == nil {
