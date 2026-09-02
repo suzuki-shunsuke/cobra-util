@@ -107,6 +107,7 @@ cmd := docs.With(cobrautil.Command(env, rootCmd, opts), sub)
 
 `docs list` outputs the name and the description of every document as JSON, and `docs show <name>` outputs one of them.
 A name that doesn't exist is reported with the names that do, so an agent that guessed wrong recovers without listing the documents again.
+Documents in subdirectories are served too, named by their path, such as `docs show codes/001`, so documentation grouped in directories doesn't have to be flattened.
 
 ```console
 $ hello docs list

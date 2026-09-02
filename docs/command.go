@@ -16,8 +16,10 @@ type Command struct {
 	// FS holds the documents as Markdown files with a YAML frontmatter, and is
 	// usually embedded with go:embed. The command fails if it is nil.
 	//
-	// The documents are read from the root of FS, so an embed.FS holding them in a
-	// subdirectory has to be narrowed with fs.Sub first.
+	// Names are paths relative to the root of FS, so an embed.FS holding the
+	// documents in a subdirectory has to be narrowed with fs.Sub first, and a
+	// document in a subdirectory of the documentation is named by its path, such as
+	// "codes/001".
 	FS fs.FS
 	// Name is the name of the program, which appears in the help, in the output of
 	// 'docs list', and in Hint, so that they read as commands that can be run. It may
@@ -74,7 +76,8 @@ func (cmd *Command) Hint() string {
 	return fmt.Sprintf("If you are a coding agent, run `%[1]sdocs list` to list the documentation and `%[1]sdocs show <name>` to read it before answering questions about %[2]s or troubleshooting its errors.", name, subject)
 }
 
-// Names lists the names of the documents, which are the names 'docs show' takes.
+// Names lists the names of the documents, including the ones in subdirectories,
+// which are the names 'docs show' takes.
 func (cmd *Command) Names() ([]string, error) {
 	if cmd.FS == nil {
 		return nil, errNoDocs
@@ -124,7 +127,8 @@ func (cmd *Command) List(w io.Writer) error {
 	return nil
 }
 
-// Show writes the content of the document named name to w.
+// Show writes the content of the document named name to w. The name is the path of
+// the document in FS without the extension, which is what Names lists.
 func (cmd *Command) Show(w io.Writer, name string) error {
 	if cmd.FS == nil {
 		return errNoDocs
