@@ -12,6 +12,7 @@ require (
 	github.com/suzuki-shunsuke/slog-util v0.3.2
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/oauth2 v0.36.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

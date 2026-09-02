@@ -9,6 +9,7 @@ It is the cobra counterpart of [urfave-cli-v3-util](https://github.com/suzuki-sh
 - [helpall](helpall): Output the help message of all commands
 - [vcmd](vcmd): Version Command
 - [jsonschema](jsonschema): Output the JSON Schema of the configuration file
+- [docs](docs): Output the embedded documents for coding agents
 - [keyring/ghtoken](keyring/ghtoken): Manage a GitHub Access token by keyring
 
 ## How To Use
@@ -76,4 +77,65 @@ cmd.AddCommand(jsonschema.New(&jsonschema.Command{
 
 ```console
 $ hello json-schema > hello.json
+```
+
+### Documents for coding agents
+
+`docs.With` adds the `docs` command, which lists and outputs the documents embedded in the binary.
+Coding agents read them before answering questions about the CLI or troubleshooting its errors, so they always see the documents of the version that is running rather than whatever a web search turns up.
+
+The documents are Markdown files with a YAML frontmatter holding their description, embedded with `go:embed`.
+
+```markdown
+---
+description: How to install hello. Use to pick an installation method and to verify the binary.
+---
+
+# Install
+```
+
+```go
+//go:embed docs/*.md
+var docsFS embed.FS
+
+sub, err := fs.Sub(docsFS, "docs")
+if err != nil {
+	return err
+}
+cmd := docs.With(cobrautil.Command(env, rootCmd, opts), sub)
+```
+
+`docs list` outputs the name and the description of every document as JSON, and `docs show <name>` outputs one of them.
+A name that doesn't exist is reported with the names that do, so an agent that guessed wrong recovers without listing the documents again.
+
+```console
+$ hello docs list
+{
+  "results": [
+    {
+      "name": "install",
+      "description": "How to install hello. Use to pick an installation method and to verify the binary."
+    }
+  ],
+  "help": "Run `hello docs show <name>` to see the details of each document."
+}
+
+$ hello docs show install
+```
+
+Use `docs.New` instead of `docs.With` to name the program yourself, or to add the command somewhere other than the root.
+
+```go
+docsCmd := &docs.Command{
+	FS:   sub,
+	Name: "hello",
+}
+cmd.AddCommand(docs.New(docsCmd))
+```
+
+An agent only learns that these documents exist if a command it runs says so, so log `Command.Hint` from the commands it is likely to run.
+Log it to stderr rather than stdout, so that it doesn't break scripts that parse the output, and at the info level so that a lower log level silences it.
+
+```go
+logger.Info(docsCmd.Hint())
 ```
