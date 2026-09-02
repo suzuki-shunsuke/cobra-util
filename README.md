@@ -8,6 +8,7 @@ It is the cobra counterpart of [urfave-cli-v3-util](https://github.com/suzuki-sh
 - [cobrautil](cobrautil): The entry point of the process, and environment variable sources for flags
 - [helpall](helpall): Output the help message of all commands
 - [vcmd](vcmd): Version Command
+- [jsonschema](jsonschema): Output the JSON Schema of the configuration file
 - [keyring/ghtoken](keyring/ghtoken): Manage a GitHub Access token by keyring
 
 ## How To Use
@@ -48,3 +49,31 @@ The value comes from the command line first, then from the environment variables
 The names are appended to the flag's usage as `[$HELLO_GITHUB_TOKEN] [$GITHUB_TOKEN]`, so the help says where else the value can come from.
 
 Note that cobra runs only the closest `PersistentPreRunE` in the chain, so a command that sets one of its own must call `cobrautil.ApplyEnvs` itself.
+
+### JSON Schema
+
+`jsonschema.With` adds the `json-schema` command, which outputs the JSON Schema of the configuration file so that editors such as VSCode can complete the configuration file and warn about invalid settings.
+The schema is passed as bytes, so embed the schema the CLI generates with `go:embed` and it always describes the configuration the running version accepts.
+
+`With` adds the command to the command it is given and returns it, so it can wrap `cobrautil.Command`.
+
+```go
+//go:embed json-schema/hello.json
+var schema []byte
+
+cmd := jsonschema.With(cobrautil.Command(env, rootCmd, opts), schema)
+```
+
+It takes the name of the program from the command it adds to, which is what the example in the help says.
+Use `jsonschema.New` instead to name the program yourself, or to add the command somewhere other than the root.
+
+```go
+cmd.AddCommand(jsonschema.New(&jsonschema.Command{
+	Schema: schema,
+	Name:   "hello",
+}))
+```
+
+```console
+$ hello json-schema > hello.json
+```
