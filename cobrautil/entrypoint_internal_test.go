@@ -3,6 +3,7 @@ package cobrautil
 import (
 	"context"
 	"errors"
+	"runtime/debug"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -99,5 +100,53 @@ func TestRunE(t *testing.T) {
 	}
 	if gotLogger != logger {
 		t.Fatal("the logger must be passed through")
+	}
+}
+
+func TestGetVersion(t *testing.T) {
+	t.Parallel()
+	const moduleVersion = "v2.0.0"
+	withModuleVersion := func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{Main: debug.Module{Version: moduleVersion}}, true
+	}
+	data := []struct {
+		name          string
+		version       string
+		readBuildInfo func() (*debug.BuildInfo, bool)
+		exp           string
+	}{
+		{
+			name:          "the given version is used",
+			version:       "1.0.0",
+			readBuildInfo: withModuleVersion,
+			exp:           "1.0.0",
+		},
+		{
+			name:          "the module version is used if the version is empty",
+			readBuildInfo: withModuleVersion,
+			exp:           moduleVersion,
+		},
+		{
+			name: "unknown if the module version is empty",
+			readBuildInfo: func() (*debug.BuildInfo, bool) {
+				return &debug.BuildInfo{}, true
+			},
+			exp: "unknown",
+		},
+		{
+			name: "unknown if the build info is unavailable",
+			readBuildInfo: func() (*debug.BuildInfo, bool) {
+				return nil, false
+			},
+			exp: "unknown",
+		},
+	}
+	for _, d := range data {
+		t.Run(d.name, func(t *testing.T) {
+			t.Parallel()
+			if diff := cmp.Diff(d.exp, getVersion(d.version, d.readBuildInfo)); diff != "" {
+				t.Fatal(diff)
+			}
+		})
 	}
 }
