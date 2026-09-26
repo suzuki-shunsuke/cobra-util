@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -50,6 +51,7 @@ func Main(name, version string, run Run, args ...any) {
 
 // core is Main without the os.Exit, so that a test can assert on the exit code.
 func core(name, version string, run Run, args ...any) int {
+	version = getVersion(version, debug.ReadBuildInfo)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	logger := slogutil.New(&slogutil.InputNew{
@@ -74,6 +76,19 @@ func core(name, version string, run Run, args ...any) int {
 		return ecerror.GetExitCode(err)
 	}
 	return 0
+}
+
+// getVersion returns version if it isn't empty. Otherwise it falls back to the
+// module version the Go toolchain embeds in the binary, so that a binary built
+// without -ldflags, such as one from 'go install', still reports its version.
+func getVersion(version string, readBuildInfo func() (*debug.BuildInfo, bool)) string {
+	if version != "" {
+		return version
+	}
+	if info, ok := readBuildInfo(); ok && info.Main.Version != "" {
+		return info.Main.Version
+	}
+	return "unknown"
 }
 
 // RunEFunc is a command body that is given the logger built by Main, on top of what
