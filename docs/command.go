@@ -73,7 +73,7 @@ func (cmd *Command) Hint() string {
 		subject = name
 		name += " "
 	}
-	return fmt.Sprintf("If you are a coding agent, run `%[1]sdocs list` to list the documentation and `%[1]sdocs show <name>` to read it before answering questions about %[2]s or troubleshooting its errors.", name, subject)
+	return fmt.Sprintf("Note for coding agents: run `%[1]sdocs list` to list the documentation and `%[1]sdocs show <name>` to read it before answering questions about %[2]s or troubleshooting its errors.", name, subject)
 }
 
 // Names lists the names of the documents, including the ones in subdirectories,
